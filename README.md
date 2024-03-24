@@ -17,7 +17,7 @@ be strings.
 ## Output
 The output is sent to the MQTT-server as a JSON-object, the topic is `lewm/<hostname>`, and the format is:
 ```
-{ "bssid": "BB:SS:11:DD:00:00", "rtt_gw_ms": 2, "rssi": -60 }
+{ "bssid": "BB:55:55:11:DD:00", "rtt_gw_ms": 2, "rssi": -60 }
 ```
 
 # TODO
