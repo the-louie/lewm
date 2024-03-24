@@ -1,6 +1,5 @@
 #include <ESP32Ping.h>
 
-
 int pingHost(IPAddress ip_address) {
   bool success = Ping.ping(ip_address, 5);
   if (!success) {

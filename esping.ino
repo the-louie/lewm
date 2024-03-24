@@ -33,6 +33,8 @@ void setup()
     // Set and print hostname
     setHostname();
 
+    WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+    WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
     Serial.print("Connecting to ");
     Serial.print(ssid);
     WiFi.begin(ssid, password);
@@ -40,15 +42,18 @@ void setup()
         delay(500);
         Serial.print(".");
     }
-    WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
-    WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
     Serial.println("connected");
-
-
+    bssid = WiFi.BSSIDstr();
+    gw_ip = WiFi.gatewayIP();
+    local_ip = WiFi.localIP();
     Serial.print("Local IP: ");
-    Serial.print(WiFi.localIP());
+    Serial.print(local_ip);
     Serial.print("\tGateway IP: ");
-    Serial.println(WiFi.gatewayIP());
+    Serial.print(gw_ip);
+    Serial.print("\tBSSID: ");
+    Serial.println(bssid);
+
+
 
 
     Serial.print("Setting up NTP");
@@ -90,36 +95,28 @@ void loop(){
     // Use NTP to get the time of day
     timeClient.update();
     current_timestamp = getDateTime();
-    Serial.print(current_timestamp);
-    Serial.print("\t");
+    Serial.print(current_timestamp); Serial.print("\t");
 
     // Get the WIFI RSSI
     int8_t rssi = WiFi.RSSI();
-    Serial.print("RSSI: ");
-    Serial.print(rssi);
-    Serial.print("dB\t");
+    Serial.print("RSSI: "); Serial.print(rssi); Serial.print("dB\t");
 
     // Ping the local gateway
-    Serial.print("GW (");
-    Serial.print(WiFi.gatewayIP());
-    Serial.print("): ");
-    rtt_gw_ms = pingHost(WiFi.gatewayIP());
+    Serial.print("GW ("); Serial.print(gw_ip); Serial.print("): ");
+    rtt_gw_ms = pingHost(gw_ip);
     if (rtt_gw_ms >= 0) {
-      Serial.print(rtt_gw_ms);
-      Serial.print("ms");
+      Serial.print(rtt_gw_ms); Serial.print("ms");
     } else {
       Serial.print("ERROR");
     }
-    Serial.print("\n");
+    Serial.print("\t-\t");
 
-    // TODO: break out to own func
     // Build a JSON string
     char mqttMsgBuf[256] = {0};
     char bssidBuf[20] = {0};
     bssid.toCharArray(bssidBuf, 20);
-    char timestampBuf[20] = {0};
-    current_timestamp.toCharArray(timestampBuf, 20);
-    snprintf(mqttMsgBuf, 255, "{ \"timestamp\": \"%s\", \"bssid\": \"%s\", \"rtt_gw_ms\": %d, \"rssi\": %d }", timestampBuf, bssidBuf, rtt_gw_ms, rssi);
+
+    snprintf(mqttMsgBuf, 255, "{ \"bssid\": \"%s\", \"rtt_gw_ms\": %d, \"rssi\": %d }", bssidBuf, rtt_gw_ms, rssi);
 
     // Build a topic string
     char hostnameBuf[20] = {0};
@@ -137,9 +134,9 @@ void loop(){
     // Publish the measurements to the MQTT broker
     bool success = mqttClient.publish(topicBuf, mqttMsgBuf);
     if (success) {
-      Serial.println("Done");
+      Serial.println("Success");
     } else {
-      Serial.println("Fail.");
+      Serial.println("Fail");
     }
     firstMsg = false;
     lastMsg = now;

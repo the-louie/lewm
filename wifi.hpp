@@ -1,5 +1,8 @@
 String bssid;
 String hostname;
+IPAddress gw_ip;
+IPAddress local_ip;
+
 char node_hostname[255];  // Used in the MQTT code also
 
 void setHostname() {
@@ -15,7 +18,7 @@ void setHostname() {
 
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
   bssid = WiFi.BSSIDstr();
-  Serial.print("BSSID: ");
+  Serial.print("Reconnected to BSSID: ");
   Serial.println(bssid);
 }
 
