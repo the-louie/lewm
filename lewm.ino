@@ -1,15 +1,11 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-
-
 #include "config.hpp" // Load config
 #include "utils.hpp"  // Some misc functions
 #include "netfunc.hpp" // Pinging and resolving hosts
 #include "wifi.hpp"    // Connecting and reconnecting to wifi
 #include "mqtt.hpp"    // Reconnecting and sending mqtt messages
-
-
 
 bool firstMsg = true;
 long messageInterval = 300000; // 5 minutes
@@ -33,6 +29,7 @@ void setup()
     // Set and print hostname
     setHostname();
 
+    // Connect to WIFI
     WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
     WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
     Serial.print("Connecting to ");
@@ -53,9 +50,7 @@ void setup()
     Serial.print("\tBSSID: ");
     Serial.println(bssid);
 
-
-
-
+    // Setup NTP to keep the time
     Serial.print("Setting up NTP");
     timeClient.begin();
     timeClient.setTimeOffset(3600);
@@ -65,11 +60,10 @@ void setup()
     }
     Serial.println("success");
 
-
+    // Connect to MQTT server
     Serial.print("Setting up MQTT...");
     mqttClient.setServer(mqtt_server, 1883);
     Serial.println("done");
-
     mqttReconnect();
 }
 
@@ -111,33 +105,55 @@ void loop(){
     }
     Serial.print("\t-\t");
 
-    // Build a JSON string
-    char mqttMsgBuf[256] = {0};
+    // Build string
     char bssidBuf[20] = {0};
     bssid.toCharArray(bssidBuf, 20);
 
-    snprintf(mqttMsgBuf, 255, "{ \"bssid\": \"%s\", \"rtt_gw_ms\": %d, \"rssi\": %d }", bssidBuf, rtt_gw_ms, rssi);
+    // Build hostname string
+    char hostnameBuf[28] = {0};
+    hostname.toCharArray(hostnameBuf, 28);
 
-    // Build a topic string
-    char hostnameBuf[20] = {0};
-    char topicBuf[28] = {0};
-    hostname.toCharArray(hostnameBuf, 20);
-    snprintf(topicBuf, 28, "lewm/%s", hostnameBuf);
+    // Build a topic strings
+    char topicRttBuf[128] = {0};
+    snprintf(topicRttBuf, 128, "lewm/%s/%s/RTT", hostnameBuf, bssidBuf);
+    char topicRssiBuf[128] = {0};
+    snprintf(topicRssiBuf, 128, "lewm/%s/%s/RSSI", hostnameBuf, bssidBuf);
+
+    char mqttMsRttgBuf[8] = {0}; 
+    snprintf(mqttMsRttgBuf, 8, "%d", rtt_gw_ms);
+    char mqttMsgRssiBuf[8] = {0}; 
+    snprintf(mqttMsgRssiBuf, 8, "%d", rssi);
 
     // Display some debug info
     Serial.print("Publishing to ");
-    Serial.print(topicBuf);
+    Serial.print(topicRttBuf);
     Serial.print(": '");
-    Serial.print(mqttMsgBuf);
+    Serial.print(mqttMsRttgBuf);
     Serial.print("'...");
 
     // Publish the measurements to the MQTT broker
-    bool success = mqttClient.publish(topicBuf, mqttMsgBuf);
-    if (success) {
+    bool successRtt = mqttClient.publish(topicRttBuf, mqttMsRttgBuf);
+    if (successRtt) {
       Serial.println("Success");
     } else {
       Serial.println("Fail");
     }
+
+    // Display some debug info
+    Serial.print("Publishing to ");
+    Serial.print(topicRssiBuf);
+    Serial.print(": '");
+    Serial.print(mqttMsgRssiBuf);
+    Serial.print("'...");
+
+    // Publish the measurements to the MQTT broker
+    bool successRssi = mqttClient.publish(topicRssiBuf, mqttMsgRssiBuf);
+    if (successRssi) {
+      Serial.println("Success");
+    } else {
+      Serial.println("Fail");
+    }
+
     firstMsg = false;
     lastMsg = now;
   }
